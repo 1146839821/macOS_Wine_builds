@@ -16,15 +16,14 @@ env:
   MACOSX_DEPLOYMENT_TARGET: 10.14
   WINE_CONFIGURE: $GITHUB_WORKSPACE/configure
   BUILDROOT: $GITHUB_WORKSPACE/build
-  WINE_INSTALLROOT: install
+  WINE_INSTALLROOT: $GITHUB_WORKSPACE/install
   WINE_MONO: https://github.com/madewokherd/wine-mono/releases/download/wine-mono-9.3.0/wine-mono-9.3.0-x86.tar.xz
 jobs:
   build:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
-      - name: Use Xcode 15
-        run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
+
 
       - name: Install Homebrew Packages
         continue-on-error: true
@@ -67,9 +66,6 @@ jobs:
       - name: Configure wine64
         run: |
           set -x
-
-          export ac_cv_lib_soname_MoltenVK="libMoltenVK.dylib"
-          export ac_cv_lib_soname_vulkan=""
           
           mkdir -p ${{ env.BUILDROOT }}/wine64
           pushd ${{ env.BUILDROOT }}/wine64
@@ -129,8 +125,6 @@ jobs:
 
           cp -a ${{ env.WINE_INSTALLROOT }}/. Libraries/Wine/
           rm -rf Libraries/Wine/share/man
-          cp -a verbs.txt Libraries
-          cp -a Runtime/DXVK Libraries
 
       - name: Copy External Libs
         run: |
