@@ -12,18 +12,21 @@ env:
   LIBRARY_PATH: /usr/local/lib
   CFLAGS: -O3
   CROSSCFLAGS: -O3 -Wno-error=incompatible-pointer-types -Wno-error=int-conversion
-  LDFLAGS: -Wl,-ld_classic -Wl,-headerpad_max_install_names -Wl,-rpath,@loader_path/../../ -Wl,-rpath,/usr/local/lib'
+  LDFLAGS: -Wl,-ld_classic -Wl,-headerpad_max_install_names -Wl,-rpath,@loader_path/../../ -Wl,-rpath,/usr/local/lib
   MACOSX_DEPLOYMENT_TARGET: 10.14
   WINE_CONFIGURE: $GITHUB_WORKSPACE/configure
   BUILDROOT: $GITHUB_WORKSPACE/build
-  WINE_INSTALLROOT: $GITHUB_WORKSPACE/install
+  WINE_INSTALLROOT: install
   WINE_MONO: https://github.com/madewokherd/wine-mono/releases/download/wine-mono-9.3.0/wine-mono-9.3.0-x86.tar.xz
+
 jobs:
   build:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use Xcode 15
+        run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
 
       - name: Install Homebrew Packages
         continue-on-error: true
@@ -31,10 +34,9 @@ jobs:
           REQUIRED_PACKAGES=(
               # Build Dependencies
               "bison"
-              "mingw-w64"
               "pkg-config"
-              "coreutils"
               "gcenx/wine/cx-llvm"
+
               # Dependencies
               "freetype"
               "gettext"
@@ -42,10 +44,20 @@ jobs:
               "gstreamer"
               "sdl2"
               "molten-vk"
-            )
+              "winetricks"
+          )
+
           brew update
           brew install "${REQUIRED_PACKAGES[@]}"
-          
+
+      - name: Install mingw
+        continue-on-error: true
+        run: |
+          # As of mingw-w64 12, brew uses UCRT instead of MSVCRT
+          # Wine will fail to build with UCRT, so we must rollback.
+
+          curl -L https://raw.githubusercontent.com/Homebrew/homebrew-core/31209a399a7b40bf2cd3abd7aee2715547ccd5bd/Formula/m/mingw-w64.rb > mingw-w64.rb && brew install mingw-w64.rb
+          rm mingw-w64.rb
 
       - name: Echo Libs [DEBUG]
         run: |
@@ -66,46 +78,48 @@ jobs:
       - name: Configure wine64
         run: |
           set -x
-          
+
+          export ac_cv_lib_soname_MoltenVK="libMoltenVK.dylib"
+          export ac_cv_lib_soname_vulkan=""
+
           mkdir -p ${{ env.BUILDROOT }}/wine64
           pushd ${{ env.BUILDROOT }}/wine64
           ${{ env.WINE_CONFIGURE }} \
-            --disable-option-checking \
-            --disable-tests \
-            --enable-archs=i386,x86_64 \
-            --without-alsa \
-            --without-capi \
-            --with-coreaudio \
-            --with-cups \
-            --without-dbus \
-            --without-fontconfig \
-            --with-freetype \
-            --with-gettext \
-            --without-gettextpo \
-            --without-gphoto \
-            --with-gnutls \
-            --without-gssapi \
-            --with-gstreamer \
-            --without-inotify \
-            --without-krb5 \
-            --with-mingw \
-            --without-netapi \
-            --with-opencl \
-            --with-opengl \
-            --without-oss \
-            --with-pcap \
-            --with-pcsclite \
-            --with-pthread \
-            --without-pulse \
-            --without-sane \
-            --with-sdl \
-            --without-udev \
-            --with-unwind \
-            --without-usb \
-            --without-v4l2 \
-            --with-vulkan \
-            --without-wayland \
-            --without-x
+              --disable-option-checking \
+              --enable-win64 \
+              --enable-archs=i386,x86_64 \
+              --disable-tests \
+              --without-alsa \
+              --without-capi \
+              --with-coreaudio \
+              --with-cups \
+              --without-dbus \
+              --without-fontconfig \
+              --with-freetype \
+              --with-gettext \
+              --without-gettextpo \
+              --without-gphoto \
+              --with-gnutls \
+              --without-gssapi \
+              --with-gstreamer \
+              --without-inotify \
+              --without-krb5 \
+              --with-mingw \
+              --without-netapi \
+              --with-opencl \
+              --with-opengl \
+              --without-oss \
+              --with-pcap \
+              --with-pthread \
+              --without-pulse \
+              --without-sane \
+              --with-sdl \
+              --without-udev \
+              --with-unwind \
+              --without-usb \
+              --without-v4l2 \
+              --with-vulkan \
+              --without-x
           popd
 
       - name: Build wine64
@@ -113,39 +127,43 @@ jobs:
           pushd ${{ env.BUILDROOT }}/wine64
           make -j$(sysctl -n hw.ncpu 2>/dev/null)
           popd
+
       - name: Install wine64
         run: |
           pushd ${{ env.BUILDROOT }}/wine64
           make install-lib DESTDIR="$GITHUB_WORKSPACE/${{ env.WINE_INSTALLROOT }}"
           popd
-      - name: Create Final Package
-        run: |
-          mkdir -p Libraries/DXVK
-          mkdir -p Libraries/Wine
+  
+     
+
 
           cp -a ${{ env.WINE_INSTALLROOT }}/. Libraries/Wine/
+
           rm -rf Libraries/Wine/share/man
+
+
 
       - name: Copy External Libs
         run: |
           chmod +x .github/dylib_packer.zsh
           .github/dylib_packer.zsh
-          
+
+
       - name: Install WineMono
         run: |
           mkdir Libraries/Wine/share/wine/mono
 
           curl -L -o mono.tar.xz ${{ env.WINE_MONO }}
           tar -xzf mono.tar.xz -C Libraries/Wine/share/wine/mono
-          
+  
       - name: Tar Libraries
         if: success()
         run: |
-          tar -zcf Libraries.tar.gz Libraries          
-
+          tar -zcf Libraries.tar.gz Libraries
+          
       - name: Upload Libraries
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Libraries
-          path: Libraries.tar.gz          
+          path: Libraries.tar.gz
