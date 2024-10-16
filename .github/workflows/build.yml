@@ -13,7 +13,6 @@ env:
   CFLAGS: -O3
   CROSSCFLAGS: -O3 -Wno-error=incompatible-pointer-types -Wno-error=int-conversion
   LDFLAGS: -Wl,-ld_classic -Wl,-headerpad_max_install_names -Wl,-rpath,@loader_path/../../ -Wl,-rpath,/usr/local/lib
-  MACOSX_DEPLOYMENT_TARGET: 10.14
   WINE_CONFIGURE: $GITHUB_WORKSPACE/configure
   BUILDROOT: $GITHUB_WORKSPACE/build
   WINE_INSTALLROOT: install
@@ -21,12 +20,15 @@ env:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
+    defaults:
+      run:
+        shell: arch -x86_64 zsh -e {0}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Xcode 15
-        run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
+      # - name: Use Xcode 15
+      #   run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
 
       - name: Install Homebrew Packages
         continue-on-error: true
@@ -87,7 +89,7 @@ jobs:
           ${{ env.WINE_CONFIGURE }} \
               --disable-option-checking \
               --enable-win64 \
-              --enable-archs=i386,x86_64 \
+              --enable-archs=x86_64 \
               --disable-tests \
               --without-alsa \
               --without-capi \
