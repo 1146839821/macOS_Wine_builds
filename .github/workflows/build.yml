@@ -10,7 +10,7 @@ env:
   CXX: clang++
   CPATH: /usr/local/include
   LIBRARY_PATH: /usr/local/lib
-  PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/Apple/usr/bin
+
   CFLAGS: -O3
   CROSSCFLAGS: -O3 -Wno-error=incompatible-pointer-types -Wno-error=int-conversion
   LDFLAGS: -Wl,-ld_classic -Wl,-headerpad_max_install_names -Wl,-rpath,@loader_path/../../ -Wl,-rpath,/usr/local/lib
@@ -21,15 +21,16 @@ env:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-13
     defaults:
       run:
         shell: arch -x86_64 zsh -e {0}
     steps:
       - uses: actions/checkout@v4
 
-      # - name: Use Xcode 15
-      #   run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
+      - name: Use Xcode 15
+        run: sudo xcode-select -switch /Applications/Xcode_15.2.app/Contents/Developer
+        
       - name: Install Homebrew
         run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
       - name: Install Homebrew Packages
@@ -89,41 +90,42 @@ jobs:
           mkdir -p ${{ env.BUILDROOT }}/wine64
           pushd ${{ env.BUILDROOT }}/wine64
           ${{ env.WINE_CONFIGURE }} \
-              --disable-option-checking \
-              --enable-win64 \
-              --enable-archs=x86_64 \
-              --disable-tests \
-              --without-alsa \
-              --without-capi \
-              --with-coreaudio \
-              --with-cups \
-              --without-dbus \
-              --without-fontconfig \
-              --with-freetype \
-              --with-gettext \
-              --without-gettextpo \
-              --without-gphoto \
-              --with-gnutls \
-              --without-gssapi \
-              --with-gstreamer \
-              --without-inotify \
-              --without-krb5 \
-              --with-mingw \
-              --without-netapi \
-              --with-opencl \
-              --with-opengl \
-              --without-oss \
-              --with-pcap \
-              --with-pthread \
-              --without-pulse \
-              --without-sane \
-              --with-sdl \
-              --without-udev \
-              --with-unwind \
-              --without-usb \
-              --without-v4l2 \
-              --with-vulkan \
-              --without-x
+            --disable-option-checking \
+            --disable-tests \
+            --enable-archs=i386,x86_64 \
+            --without-alsa \
+            --without-capi \
+            --with-coreaudio \
+            --with-cups \
+            --without-dbus \
+            --without-fontconfig \
+            --with-freetype \
+            --with-gettext \
+            --without-gettextpo \
+            --with-gphoto \
+            --with-gnutls \
+            --without-gssapi \
+            --with-gstreamer \
+            --with-inotify \
+            --without-krb5 \
+            --with-mingw \
+            --without-netapi \
+            --with-opencl \
+            --with-opengl \
+            --without-oss \
+            --with-pcap \
+            --with-pcsclite \
+            --with-pthread \
+            --without-pulse \
+            --without-sane \
+            --with-sdl \
+            --without-udev \
+            --with-unwind \
+            --without-usb \
+            --without-v4l2 \
+            --with-vulkan \
+            --without-wayland \
+            --without-x
           popd
 
       - name: Build wine64
